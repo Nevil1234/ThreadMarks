@@ -1,40 +1,70 @@
 import { View, Text, Pressable, ScrollView, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import Colors from "@/constants/Colors";
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
 import { ThirdwebStorage } from '@thirdweb-dev/storage';
 import Toast from 'react-native-toast-message';
-import CryptoJS from 'crypto-js'
-import Donate from '../Donate';
+import CryptoJS from 'crypto-js';
+
 const storage = new ThirdwebStorage({
   clientId: process.env.EXPO_PUBLIC_THIRDWEB_CLIENT_ID,
   gatewayUrls: ['https://ipfs.thirdwebcdn.com/ipfs/'],
   secretKey: process.env.EXPO_PUBLIC_THIRDWEB_SECRET_KEY,
 });
 
-const ENCRYPTION_KEY = "f8a9b7c3d5e1f2a4b6c8d0e2f1a3b5c7d9e8f0a1b2c3d4e5f6a7b8c9d0e1f2a3";
-
-const childishDecrpyt = (encrypted: string) => {
-  try{
+// Decryption function
+const childishDecrypt = (encrypted: string) => {
+  try {
     const reversed = encrypted.split('').reverse().join('');
-    const padded = reversed + '=='.slice(0,(4 - (reversed.length % 4))% 4);
+    const padded = reversed + '=='.slice(0, (4 - (reversed.length % 4)) % 4);
     const bytes = CryptoJS.enc.Base64.parse(padded);
     return bytes.toString(CryptoJS.enc.Utf8);
-  }
-  catch(error){
+  } catch (error) {
     console.error('Decryption Error:', error);
     throw new Error('Failed to decrypt the product. Please try again.');
   }
 };
-export default function Home() {
+
+// Condition score calculation function
+const calculateConditionScore = (metadata: any): number => {
+  let score = 10;
+  const currentDate = new Date();
+  try {
+    if (metadata.manufacturingDate) {
+      const manufactureDate = new Date(metadata.manufacturingDate);
+      const ageInYears = (currentDate.getTime() - manufactureDate.getTime()) / (1000 * 60 * 60 * 24 * 365);
+      score -= Math.min(3, ageInYears * 0.5);
+    }
+    if (metadata.material) {
+      const durableMaterials = ['cotton', 'polyester', 'nylon', 'wool', 'leather'];
+      if (durableMaterials.some(m => metadata.material.toLowerCase().includes(m))) {
+        score += 1;
+      } else {
+        score -= 1;
+      }
+    }
+    if (metadata.category) {
+      const durableCategories = ['jeans', 'jacket', 'coat', 'sweater'];
+      if (durableCategories.some(c => metadata.category.toLowerCase().includes(c))) {
+        score += 0.5;
+      }
+    }
+    score = Math.max(0, Math.min(10, score));
+    return Number(score.toFixed(1));
+  } catch (error) {
+    console.error('Error calculating condition score:', error);
+    return 5.0;
+  }
+};
+
+export default function ScanClothing() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const [showCamera, setShowCamera] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [loading, setLoading] = useState(false);
   const isPermissionGranted = Boolean(permission?.granted);
-  
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (showCamera) {
@@ -47,33 +77,26 @@ export default function Home() {
     try {
       setLoading(true);
       setShowCamera(false);
-  
-      const decryptedData = childishDecrpyt(data);
-      
+
+      // Decrypt the QR code data
+      const decryptedData = childishDecrypt(data);
+
       // Validate and sanitize input
       const sanitizedData = decryptedData.trim().replace(/\s/g, '');
       if (!sanitizedData.startsWith('ipfs://')) {
         throw new Error('Invalid IPFS URI format');
       }
-  
+
       // Extract CID and path
       const ipfsPath = sanitizedData.replace('ipfs://', '');
       const [cid, ...pathParts] = ipfsPath.split('/');
-  
-      // Validate CID format
       if (!/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|bafybe[a-z0-9]+)$/.test(cid)) {
         throw new Error('Invalid IPFS CID');
       }
-  
+
       const path = pathParts.join('/');
-      const gateways = [
-        // `https://ipfs.io/ipfs/${cid}/${path}`,
-        // `https://${cid}.ipfs.dweb.link/${path}`,
-        // `https://ipfs.thirdwebcdn.com/ipfs/${cid}/${path}`,
-        // `https://cloudflare-ipfs.com/ipfs/${cid}/${path}`, // Cloudflare gateway
-        `https://gateway.pinata.cloud/ipfs/${cid}/${path}`, // Pinata gateway
-      ];
-  
+      const gateways = [`https://gateway.pinata.cloud/ipfs/${cid}/${path}`];
+
       let metadata;
       for (const url of gateways) {
         try {
@@ -95,11 +118,11 @@ export default function Home() {
           console.error(`Gateway ${url} failed with error:`, error.message);
         }
       }
-  
+
       if (!metadata) {
         throw new Error('Failed to fetch metadata from all gateways');
       }
-  
+
       // Handle metadata
       const finalMetadata = {
         name: metadata.name || 'Unknown',
@@ -112,21 +135,14 @@ export default function Home() {
         batchNumber: metadata.properties?.batch_number || 'N/A',
         manufacturingDate: metadata.properties?.manufacturing_date || 'N/A',
         description: metadata.description || 'No description available',
-        // orderId: metadata.orderId || 'N/A',
-
       };
-  
+
       // Resolve image URL
       const resolveImageUrl = (ipfsUrl: string): string[] => {
         const cidAndPath = ipfsUrl.replace('ipfs://', '');
-        return [
-          // `https://ipfs.io/ipfs/${cidAndPath}`,
-          // `https://${cidAndPath}.ipfs.dweb.link`,
-          // `https://cloudflare-ipfs.com/ipfs/${cidAndPath}`,
-          `https://gateway.pinata.cloud/ipfs/${cidAndPath}`,
-        ];
+        return [`https://gateway.pinata.cloud/ipfs/${cidAndPath}`];
       };
-  
+
       const testImage = async (url: string) => {
         try {
           const response = await fetch(url, { method: 'GET' });
@@ -135,10 +151,10 @@ export default function Home() {
           return false;
         }
       };
-  
+
       const imageUrls = resolveImageUrl(finalMetadata.image);
       let accessibleImageUrl = null;
-  
+
       for (const url of imageUrls) {
         console.log('Testing image URL:', url);
         if (await testImage(url)) {
@@ -146,29 +162,33 @@ export default function Home() {
           break;
         }
       }
-  
+
       if (!accessibleImageUrl) {
         accessibleImageUrl = 'https://via.placeholder.com/150'; // Default placeholder image
       }
-  
-      // Navigate to product page
+
+      // Calculate condition score
+      const conditionScore = calculateConditionScore(finalMetadata);
+
+      // Navigate back to Donate page with scanned product data
       router.push({
-        pathname: '/product',
+        pathname: '/Donate',
         params: {
-          name: finalMetadata.name,
-          brand: finalMetadata.brand,
-          size: finalMetadata.size,
-          category: finalMetadata.category,
-          material: finalMetadata.material,
-          manufacturingDate: finalMetadata.manufacturingDate,
-          gender: finalMetadata.gender,
-          batchNumber: finalMetadata.batchNumber,
-          image: accessibleImageUrl,
-          description: finalMetadata.description,
-          // orderId : finalMetadata.orderId,
+          scannedProduct: JSON.stringify({
+            name: finalMetadata.name,
+            brand: finalMetadata.brand,
+            image: accessibleImageUrl,
+            size: finalMetadata.size,
+            material: finalMetadata.material,
+            gender: finalMetadata.gender,
+            category: finalMetadata.category,
+            batchNumber: finalMetadata.batchNumber,
+            manufacturingDate: finalMetadata.manufacturingDate,
+            description: finalMetadata.description,
+            conditionScore,
+          }),
         },
       });
-  
     } catch (error) {
       console.error('Scan Error:', error);
       Toast.show({
@@ -184,14 +204,9 @@ export default function Home() {
       setLoading(false);
     }
   };
+
   return (
     <ScrollView style={{ backgroundColor: Colors.BLUE }}>
-      <View style={styles.header}>
-        <Feather name="bell" size={24} color="white" />
-        <Text style={styles.headerTitle}>ThreadMark</Text>
-        <Feather name="settings" size={24} color="white" />
-      </View>
-
       <View style={styles.scannerContainer}>
         {!isPermissionGranted ? (
           <Pressable onPress={requestPermission} style={styles.permissionButton}>
@@ -225,56 +240,11 @@ export default function Home() {
           </>
         )}
       </View>
-
-      <View style={styles.actionsContainer}>
-        <ActionButton text="Check Condition Score" />
-        <ActionButton text="Recycling Options" />
-        <ActionButton text="Donate" />
-      </View>
     </ScrollView>
   );
 }
 
-const ActionButton = ({ text }: { text: string }) => {
-  const router = useRouter();
-
-  const handleButtonPress = () => {
-    switch (text) {
-      case "Check Condition Score":
-        router.push("/ConditionScore");
-        break;
-      case "Recycling Options":
-        router.push("/RecyclingOptions");
-        break;
-      case "Donate":
-      router.push("/Donate");
-      break;
-      default:
-        break;
-    }
-  };
-
-  return (
-    <TouchableOpacity style={styles.actionButton} onPress={handleButtonPress}>
-      <Text style={styles.buttonText}>{text}</Text>
-    </TouchableOpacity>
-  );
-};
-
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: Colors.BLUE,
-    height: 100,
-  },
-  headerTitle: {
-    color: 'white',
-    fontSize: 24,
-    fontFamily: 'outfit-bold'
-  },
   scannerContainer: {
     alignItems: 'center',
     padding: 20,
@@ -297,25 +267,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
     fontSize: 16,
-    color: Colors.WHITE
-  },
-  actionsContainer: {
-    backgroundColor: Colors.WHITE,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    marginTop: 10,
-    padding: 20,
-  },
-  actionButton: {
-    backgroundColor: Colors.BLUE,
-    padding: 20,
-    borderRadius: 20,
-    marginVertical: 10,
-    alignItems: 'center',
-  },
-  buttonText: {
     color: Colors.WHITE,
+  },
+  permissionButton: {
+    padding: 20,
+    backgroundColor: Colors.WHITE,
+    borderRadius: 10,
+  },
+  permissionText: {
+    color: Colors.BLUE,
     fontSize: 16,
+    textAlign: 'center',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -327,15 +289,5 @@ const styles = StyleSheet.create({
   loadingText: {
     color: Colors.WHITE,
     marginTop: 10,
-  },
-  permissionButton: {
-    padding: 20,
-    backgroundColor: Colors.WHITE,
-    borderRadius: 10,
-  },
-  permissionText: {
-    color: Colors.BLUE,
-    fontSize: 16,
-    textAlign: 'center',
   },
 });

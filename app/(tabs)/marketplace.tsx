@@ -10,7 +10,7 @@ const initialItems = [
     name: 'T-Shirt',
     brand: 'Nike',
     price: '299',
-    conditionScore: '0.9',
+    // conditionScore: '0.9',
     image: require('@/assets/images/tshirt1.png')
   },
   {
@@ -18,7 +18,7 @@ const initialItems = [
     name: 'Jeans',
     brand: 'Levi\'s',
     price: '599',
-    conditionScore: '0.8',
+    // conditionScore: '0.8',
     image: require('@/assets/images/tshirt1.png')
   },
 ];

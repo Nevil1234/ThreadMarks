@@ -1,20 +1,17 @@
 import { View, Text, Pressable, ScrollView, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import Colors from "@/constants/Colors";
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { ThirdwebStorage } from '@thirdweb-dev/storage';
 import Toast from 'react-native-toast-message';
-import CryptoJS from 'crypto-js'
-import Donate from '../Donate';
+import CryptoJS from 'crypto-js';
 const storage = new ThirdwebStorage({
   clientId: process.env.EXPO_PUBLIC_THIRDWEB_CLIENT_ID,
   gatewayUrls: ['https://ipfs.thirdwebcdn.com/ipfs/'],
   secretKey: process.env.EXPO_PUBLIC_THIRDWEB_SECRET_KEY,
 });
-
-const ENCRYPTION_KEY = "f8a9b7c3d5e1f2a4b6c8d0e2f1a3b5c7d9e8f0a1b2c3d4e5f6a7b8c9d0e1f2a3";
 
 const childishDecrpyt = (encrypted: string) => {
   try{
@@ -28,13 +25,18 @@ const childishDecrpyt = (encrypted: string) => {
     throw new Error('Failed to decrypt the product. Please try again.');
   }
 };
-export default function Home() {
+
+
+export default function ConditionScore() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [showCamera, setShowCamera] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [conditionScore, setConditionScore] = React.useState<number | null>(null); // Store condition score
+  const [isEligibleForDonation, setIsEligibleForDonation] = React.useState(false); // Donation eligibility
+  const [isEligibleForReselling, setIsEligibleForReselling] = React.useState(false); // Reselling eligibility
   const isPermissionGranted = Boolean(permission?.granted);
-  
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (showCamera) {
@@ -47,33 +49,29 @@ export default function Home() {
     try {
       setLoading(true);
       setShowCamera(false);
-  
-      const decryptedData = childishDecrpyt(data);
-      
+
+const decryptedData = childishDecrpyt(data);
+
       // Validate and sanitize input
       const sanitizedData = decryptedData.trim().replace(/\s/g, '');
       if (!sanitizedData.startsWith('ipfs://')) {
         throw new Error('Invalid IPFS URI format');
       }
-  
+
       // Extract CID and path
       const ipfsPath = sanitizedData.replace('ipfs://', '');
       const [cid, ...pathParts] = ipfsPath.split('/');
-  
+
       // Validate CID format
       if (!/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|bafybe[a-z0-9]+)$/.test(cid)) {
         throw new Error('Invalid IPFS CID');
       }
-  
+
       const path = pathParts.join('/');
       const gateways = [
-        // `https://ipfs.io/ipfs/${cid}/${path}`,
-        // `https://${cid}.ipfs.dweb.link/${path}`,
-        // `https://ipfs.thirdwebcdn.com/ipfs/${cid}/${path}`,
-        // `https://cloudflare-ipfs.com/ipfs/${cid}/${path}`, // Cloudflare gateway
         `https://gateway.pinata.cloud/ipfs/${cid}/${path}`, // Pinata gateway
       ];
-  
+
       let metadata;
       for (const url of gateways) {
         try {
@@ -95,11 +93,11 @@ export default function Home() {
           console.error(`Gateway ${url} failed with error:`, error.message);
         }
       }
-  
+
       if (!metadata) {
         throw new Error('Failed to fetch metadata from all gateways');
       }
-  
+
       // Handle metadata
       const finalMetadata = {
         name: metadata.name || 'Unknown',
@@ -112,21 +110,14 @@ export default function Home() {
         batchNumber: metadata.properties?.batch_number || 'N/A',
         manufacturingDate: metadata.properties?.manufacturing_date || 'N/A',
         description: metadata.description || 'No description available',
-        // orderId: metadata.orderId || 'N/A',
-
       };
-  
+
       // Resolve image URL
       const resolveImageUrl = (ipfsUrl: string): string[] => {
         const cidAndPath = ipfsUrl.replace('ipfs://', '');
-        return [
-          // `https://ipfs.io/ipfs/${cidAndPath}`,
-          // `https://${cidAndPath}.ipfs.dweb.link`,
-          // `https://cloudflare-ipfs.com/ipfs/${cidAndPath}`,
-          `https://gateway.pinata.cloud/ipfs/${cidAndPath}`,
-        ];
+        return [`https://gateway.pinata.cloud/ipfs/${cidAndPath}`];
       };
-  
+
       const testImage = async (url: string) => {
         try {
           const response = await fetch(url, { method: 'GET' });
@@ -135,10 +126,10 @@ export default function Home() {
           return false;
         }
       };
-  
+
       const imageUrls = resolveImageUrl(finalMetadata.image);
       let accessibleImageUrl = null;
-  
+
       for (const url of imageUrls) {
         console.log('Testing image URL:', url);
         if (await testImage(url)) {
@@ -146,29 +137,36 @@ export default function Home() {
           break;
         }
       }
-  
+
       if (!accessibleImageUrl) {
         accessibleImageUrl = 'https://via.placeholder.com/150'; // Default placeholder image
       }
-  
-      // Navigate to product page
-      router.push({
-        pathname: '/product',
-        params: {
-          name: finalMetadata.name,
-          brand: finalMetadata.brand,
-          size: finalMetadata.size,
-          category: finalMetadata.category,
-          material: finalMetadata.material,
-          manufacturingDate: finalMetadata.manufacturingDate,
-          gender: finalMetadata.gender,
-          batchNumber: finalMetadata.batchNumber,
-          image: accessibleImageUrl,
-          description: finalMetadata.description,
-          // orderId : finalMetadata.orderId,
-        },
-      });
-  
+
+      // Generate condition score
+      const score = calculateConditionScore(finalMetadata);
+      setConditionScore(score);
+
+      // Determine eligibility for donation and reselling
+      setIsEligibleForDonation(score >= 50);
+      setIsEligibleForReselling(score >= 80);
+
+      // // Navigate to product page
+      // router.push({
+      //   pathname: '/Donate',
+      //   params: {
+      //     scannedProduct: JSON.stringify({
+      //       ...finalMetadata,
+      //       image: accessibleImageUrl,
+      //       conditionScore: score,
+      //       // isEligibleForDonation,
+      //       manufacturingDate: finalMetadata.manufacturingDate,
+      //       material: finalMetadata.material,
+      //     })
+      //   }
+      // });
+
+      setIsEligibleForDonation(score >= 5.0);
+      setIsEligibleForReselling(score >= 8.0);
     } catch (error) {
       console.error('Scan Error:', error);
       Toast.show({
@@ -184,14 +182,30 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  // Function to calculate condition score
+  const calculateConditionScore = (metadata: any): number => {
+    let score = 0;
+
+    // Weighted scoring based on manufacturing date
+    const manufacturingDate = new Date(metadata.manufacturingDate);
+    const yearsSinceManufacture = (new Date().getFullYear() - manufacturingDate.getFullYear());
+    score += Math.max(0, 100 - yearsSinceManufacture * 10); // Deduct 10 points per year
+
+    // Weighted scoring based on material quality
+    const materialQuality = metadata.material.toLowerCase();
+    if (materialQuality.includes('cotton') || materialQuality.includes('polyster')) {
+      score += 3;
+    } else if (materialQuality.includes('synthetic')) {
+      score += 1;
+    }
+
+    // Ensure score is within range [0, 100]
+    return Math.min(100, Math.max(0, score));
+  };
+
   return (
     <ScrollView style={{ backgroundColor: Colors.BLUE }}>
-      <View style={styles.header}>
-        <Feather name="bell" size={24} color="white" />
-        <Text style={styles.headerTitle}>ThreadMark</Text>
-        <Feather name="settings" size={24} color="white" />
-      </View>
-
       <View style={styles.scannerContainer}>
         {!isPermissionGranted ? (
           <Pressable onPress={requestPermission} style={styles.permissionButton}>
@@ -226,36 +240,56 @@ export default function Home() {
         )}
       </View>
 
+      {/* Display condition score */}
+      {conditionScore !== null && (
+        <View style={styles.conditionScoreContainer}>
+          <Text style={styles.conditionScoreText}>Condition Score: {conditionScore}</Text>
+          <Text style={styles.eligibilityText}>
+            {isEligibleForReselling
+              ? "Eligible for Reselling"
+              : isEligibleForDonation
+              ? "Eligible for Donation"
+              : "Not Eligible for Donation or Reselling"}
+          </Text>
+        </View>
+      )}
+
+      {/* Action Buttons */}
       <View style={styles.actionsContainer}>
-        <ActionButton text="Check Condition Score" />
-        <ActionButton text="Recycling Options" />
-        <ActionButton text="Donate" />
+        <ActionButton
+          text="Donate"
+          isEnabled={isEligibleForDonation}
+          onPress={() => router.push("/Donate")}
+        />
+        <ActionButton
+          text="Resell"
+          isEnabled={isEligibleForReselling}
+          onPress={() => router.push("/marketplace")}
+        />
       </View>
     </ScrollView>
   );
 }
 
-const ActionButton = ({ text }: { text: string }) => {
-  const router = useRouter();
-
-  const handleButtonPress = () => {
-    switch (text) {
-      case "Check Condition Score":
-        router.push("/ConditionScore");
-        break;
-      case "Recycling Options":
-        router.push("/RecyclingOptions");
-        break;
-      case "Donate":
-      router.push("/Donate");
-      break;
-      default:
-        break;
-    }
-  };
-
+// Action Button Component
+const ActionButton = ({
+  text,
+  isEnabled,
+  onPress,
+}: {
+  text: string;
+  isEnabled: boolean;
+  onPress: () => void;
+}) => {
   return (
-    <TouchableOpacity style={styles.actionButton} onPress={handleButtonPress}>
+    <TouchableOpacity
+      style={[
+        styles.actionButton,
+        { opacity: isEnabled ? 1 : 0.5, backgroundColor: isEnabled ? Colors.BLUE : '#ccc' },
+      ]}
+      onPress={isEnabled ? onPress : undefined}
+      disabled={!isEnabled}
+    >
       <Text style={styles.buttonText}>{text}</Text>
     </TouchableOpacity>
   );
@@ -273,12 +307,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: 'white',
     fontSize: 24,
-    fontFamily: 'outfit-bold'
+    fontFamily: 'outfit-bold',
   },
   scannerContainer: {
     alignItems: 'center',
     padding: 20,
     minHeight: 300,
+    marginTop: 60
   },
   cameraWrapper: {
     position: 'relative',
@@ -297,13 +332,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 10,
     fontSize: 16,
-    color: Colors.WHITE
+    color: Colors.WHITE,
   },
   actionsContainer: {
     backgroundColor: Colors.WHITE,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    marginTop: 10,
+    borderRadius: 30,
+    marginTop: 100,
     padding: 20,
   },
   actionButton: {
@@ -314,7 +348,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: {
-    color: Colors.WHITE,
+    color: Colors.DARK,
     fontSize: 16,
   },
   loadingOverlay: {
@@ -337,5 +371,19 @@ const styles = StyleSheet.create({
     color: Colors.BLUE,
     fontSize: 16,
     textAlign: 'center',
+  },
+  conditionScoreContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  conditionScoreText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.WHITE,
+  },
+  eligibilityText: {
+    fontSize: 16,
+    color: Colors.WHITE,
+    marginTop: 10,
   },
 });
