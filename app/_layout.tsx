@@ -30,6 +30,12 @@ export default function RootLayout() {
            
       
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="ConditionScore" options={{ headerShown: false }} />
+      <Stack.Screen name="RecyclingOptions" options={{ headerShown: false }} />
+      <Stack.Screen name="Donate" options={{ headerShown: false }} />
+      <Stack.Screen name="ScanClothing" options={{ headerShown: false }} />
+      <Stack.Screen name="WardrobeItem" options={{ headerShown: false }} />
+      <Stack.Screen name="product" options={{ headerShown: false }} />
     </Stack>
     <Toast />
     </UserDetailContext.Provider>

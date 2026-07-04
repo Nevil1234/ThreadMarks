@@ -1,41 +1,64 @@
-import { View, Text, Pressable, ScrollView, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect } from 'react';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import Colors from "@/constants/Colors";
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { ThirdwebStorage } from '@thirdweb-dev/storage';
 import Toast from 'react-native-toast-message';
 import CryptoJS from 'crypto-js';
-const storage = new ThirdwebStorage({
-  clientId: process.env.EXPO_PUBLIC_THIRDWEB_CLIENT_ID,
-  gatewayUrls: ['https://ipfs.thirdwebcdn.com/ipfs/'],
-  secretKey: process.env.EXPO_PUBLIC_THIRDWEB_SECRET_KEY,
-});
 
 const childishDecrpyt = (encrypted: string) => {
-  try{
+  try {
     const reversed = encrypted.split('').reverse().join('');
-    const padded = reversed + '=='.slice(0,(4 - (reversed.length % 4))% 4);
+    const padded = reversed + '=='.slice(0, (4 - (reversed.length % 4)) % 4);
     const bytes = CryptoJS.enc.Base64.parse(padded);
     return bytes.toString(CryptoJS.enc.Utf8);
-  }
-  catch(error){
+  } catch (error) {
     console.error('Decryption Error:', error);
     throw new Error('Failed to decrypt the product. Please try again.');
   }
 };
 
+const calculateConditionScore = (metadata: any): number => {
+  let score = 0;
+  const manufacturingDate = new Date(metadata.manufacturingDate);
+  const yearsSinceManufacture = new Date().getFullYear() - manufacturingDate.getFullYear();
+  score += Math.max(0, 100 - yearsSinceManufacture * 10);
+
+  const material = metadata.material.toLowerCase();
+  if (material.includes('cotton') || material.includes('polyster')) {
+    score += 3;
+  } else if (material.includes('synthetic')) {
+    score += 1;
+  }
+
+  return Math.min(100, Math.max(0, score));
+};
+
+function getScoreColor(score: number) {
+  if (score >= 80) return '#22C55E';
+  if (score >= 50) return '#F59E0B';
+  return '#EF4444';
+}
+
+function getScoreLabel(score: number) {
+  if (score >= 80) return 'Excellent';
+  if (score >= 50) return 'Good';
+  if (score >= 30) return 'Fair';
+  return 'Poor';
+}
 
 export default function ConditionScore() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [showCamera, setShowCamera] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
-  const [conditionScore, setConditionScore] = React.useState<number | null>(null); // Store condition score
-  const [isEligibleForDonation, setIsEligibleForDonation] = React.useState(false); // Donation eligibility
-  const [isEligibleForReselling, setIsEligibleForReselling] = React.useState(false); // Reselling eligibility
+  const [conditionScore, setConditionScore] = React.useState<number | null>(null);
   const isPermissionGranted = Boolean(permission?.granted);
+
+  const isEligibleForDonation = conditionScore !== null && conditionScore >= 50;
+  const isEligibleForReselling = conditionScore !== null && conditionScore >= 80;
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -50,131 +73,44 @@ export default function ConditionScore() {
       setLoading(true);
       setShowCamera(false);
 
-const decryptedData = childishDecrpyt(data);
-
-      // Validate and sanitize input
+      const decryptedData = childishDecrpyt(data);
       const sanitizedData = decryptedData.trim().replace(/\s/g, '');
       if (!sanitizedData.startsWith('ipfs://')) {
         throw new Error('Invalid IPFS URI format');
       }
 
-      // Extract CID and path
       const ipfsPath = sanitizedData.replace('ipfs://', '');
       const [cid, ...pathParts] = ipfsPath.split('/');
-
-      // Validate CID format
       if (!/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|bafybe[a-z0-9]+)$/.test(cid)) {
         throw new Error('Invalid IPFS CID');
       }
 
       const path = pathParts.join('/');
-      const gateways = [
-        `https://gateway.pinata.cloud/ipfs/${cid}/${path}`, // Pinata gateway
-      ];
+      const url = `https://gateway.pinata.cloud/ipfs/${cid}/${path}`;
 
-      let metadata;
-      for (const url of gateways) {
-        try {
-          console.log('Trying gateway:', url);
-          const response = await Promise.race([
-            fetch(url),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Gateway timeout')), 5000)
-            ),
-          ]);
-          if (response.ok) {
-            metadata = await response.json();
-            console.log('Metadata fetched successfully:', metadata);
-            break;
-          } else {
-            console.error(`Gateway ${url} returned status ${response.status}`);
-          }
-        } catch (error) {
-          console.error(`Gateway ${url} failed with error:`, error.message);
-        }
-      }
+      const response = await Promise.race([
+        fetch(url),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Gateway timeout')), 5000)),
+      ]);
 
-      if (!metadata) {
-        throw new Error('Failed to fetch metadata from all gateways');
-      }
+      if (!response.ok) throw new Error('Failed to fetch metadata');
+      const metadata = await response.json();
 
-      // Handle metadata
       const finalMetadata = {
         name: metadata.name || 'Unknown',
         brand: metadata.properties?.brand || 'Unknown',
-        image: metadata.image || '',
-        size: metadata.properties?.size || 'N/A',
         material: metadata.properties?.material || 'N/A',
-        gender: metadata.properties?.gender || 'N/A',
-        category: metadata.properties?.category || 'N/A',
-        batchNumber: metadata.properties?.batch_number || 'N/A',
         manufacturingDate: metadata.properties?.manufacturing_date || 'N/A',
-        description: metadata.description || 'No description available',
       };
 
-      // Resolve image URL
-      const resolveImageUrl = (ipfsUrl: string): string[] => {
-        const cidAndPath = ipfsUrl.replace('ipfs://', '');
-        return [`https://gateway.pinata.cloud/ipfs/${cidAndPath}`];
-      };
-
-      const testImage = async (url: string) => {
-        try {
-          const response = await fetch(url, { method: 'GET' });
-          return response.ok;
-        } catch {
-          return false;
-        }
-      };
-
-      const imageUrls = resolveImageUrl(finalMetadata.image);
-      let accessibleImageUrl = null;
-
-      for (const url of imageUrls) {
-        console.log('Testing image URL:', url);
-        if (await testImage(url)) {
-          accessibleImageUrl = url;
-          break;
-        }
-      }
-
-      if (!accessibleImageUrl) {
-        accessibleImageUrl = 'https://via.placeholder.com/150'; // Default placeholder image
-      }
-
-      // Generate condition score
       const score = calculateConditionScore(finalMetadata);
       setConditionScore(score);
-
-      // Determine eligibility for donation and reselling
-      setIsEligibleForDonation(score >= 50);
-      setIsEligibleForReselling(score >= 80);
-
-      // // Navigate to product page
-      // router.push({
-      //   pathname: '/Donate',
-      //   params: {
-      //     scannedProduct: JSON.stringify({
-      //       ...finalMetadata,
-      //       image: accessibleImageUrl,
-      //       conditionScore: score,
-      //       // isEligibleForDonation,
-      //       manufacturingDate: finalMetadata.manufacturingDate,
-      //       material: finalMetadata.material,
-      //     })
-      //   }
-      // });
-
-      setIsEligibleForDonation(score >= 5.0);
-      setIsEligibleForReselling(score >= 8.0);
     } catch (error) {
       console.error('Scan Error:', error);
       Toast.show({
         type: 'error',
         text1: 'Scan Error',
-        text2: error.message.includes('Missing')
-          ? `The scanned product is missing required information: ${error.message}`
-          : 'Failed to verify the product. Please try again.',
+        text2: 'Failed to verify the product. Please try again.',
         position: 'bottom',
         visibilityTime: 5000,
       });
@@ -183,207 +119,338 @@ const decryptedData = childishDecrpyt(data);
     }
   };
 
-  // Function to calculate condition score
-  const calculateConditionScore = (metadata: any): number => {
-    let score = 0;
-
-    // Weighted scoring based on manufacturing date
-    const manufacturingDate = new Date(metadata.manufacturingDate);
-    const yearsSinceManufacture = (new Date().getFullYear() - manufacturingDate.getFullYear());
-    score += Math.max(0, 100 - yearsSinceManufacture * 10); // Deduct 10 points per year
-
-    // Weighted scoring based on material quality
-    const materialQuality = metadata.material.toLowerCase();
-    if (materialQuality.includes('cotton') || materialQuality.includes('polyster')) {
-      score += 3;
-    } else if (materialQuality.includes('synthetic')) {
-      score += 1;
-    }
-
-    // Ensure score is within range [0, 100]
-    return Math.min(100, Math.max(0, score));
-  };
-
   return (
-    <ScrollView style={{ backgroundColor: Colors.BLUE }}>
-      <View style={styles.scannerContainer}>
-        {!isPermissionGranted ? (
-          <Pressable onPress={requestPermission} style={styles.permissionButton}>
-            <Text style={styles.permissionText}>Allow Camera Access</Text>
-          </Pressable>
-        ) : (
-          <>
-            <Pressable onPress={() => setShowCamera(!showCamera)}>
-              {showCamera ? (
-                <View style={styles.cameraWrapper}>
-                  <CameraView
-                    style={styles.camera}
-                    onBarcodeScanned={loading ? undefined : handleBarCodeScanned}
-                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                  />
-                  {loading && (
-                    <View style={styles.loadingOverlay}>
-                      <ActivityIndicator size="large" color={Colors.WHITE} />
-                      <Text style={styles.loadingText}>Verifying Product...</Text>
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <Image
-                  source={require('@/assets/images/qr.png')}
-                  style={styles.qrPlaceholder}
-                />
-              )}
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar translucent backgroundColor={Colors.BG} barStyle="dark-content" />
+      <ScrollView style={styles.scroll} contentContainerStyle={{ flexGrow: 1 }} bounces={false}>
+        <View style={styles.headerSection}>
+          <View style={styles.topRow}>
+            <Pressable onPress={() => router.back()} style={styles.backBtn}>
+              <Feather name="arrow-left" size={22} color={Colors.EMERALD} />
             </Pressable>
-            <Text style={styles.scannerLabel}>Tap to scan QR code</Text>
-          </>
-        )}
-      </View>
+            <Text style={styles.title}>Condition Score</Text>
+            <View style={{ width: 40 }} />
+          </View>
 
-      {/* Display condition score */}
-      {conditionScore !== null && (
-        <View style={styles.conditionScoreContainer}>
-          <Text style={styles.conditionScoreText}>Condition Score: {conditionScore}</Text>
-          <Text style={styles.eligibilityText}>
-            {isEligibleForReselling
-              ? "Eligible for Reselling"
-              : isEligibleForDonation
-              ? "Eligible for Donation"
-              : "Not Eligible for Donation or Reselling"}
-          </Text>
+          <View style={styles.scanCard}>
+            {!isPermissionGranted ? (
+              <Pressable style={styles.permissionBtn} onPress={requestPermission}>
+                <Feather name="camera" size={28} color={Colors.EMERALD} />
+                <Text style={styles.permissionText}>Allow Camera Access</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                style={({ pressed }) => [styles.scannerBox, pressed && { transform: [{ scale: 0.98 }] }]}
+                onPress={() => setShowCamera(!showCamera)}
+              >
+                {showCamera ? (
+                  <View style={styles.cameraWrapper}>
+                    <CameraView
+                      style={styles.camera}
+                      onBarcodeScanned={loading ? undefined : handleBarCodeScanned}
+                      barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                    />
+                    {loading && (
+                      <View style={styles.loadingOverlay}>
+                        <ActivityIndicator size="large" color={Colors.EMERALD} />
+                        <Text style={styles.loadingText}>Analyzing...</Text>
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.qrPlaceholder}>
+                    <View style={styles.qrIconBox}>
+                      <Feather name="maximize" size={56} color={Colors.EMERALD} />
+                      <View style={styles.qrShieldBadge}>
+                        <Feather name="shield" size={18} color={Colors.WHITE} />
+                      </View>
+                    </View>
+                    <Text style={styles.qrLabel}>Scan QR Code</Text>
+                  </View>
+                )}
+              </Pressable>
+            )}
+            <Text style={styles.scanHint}>Scan to check your item's condition</Text>
+          </View>
         </View>
-      )}
 
-      {/* Action Buttons */}
-      <View style={styles.actionsContainer}>
-        <ActionButton
-          text="Donate"
-          isEnabled={isEligibleForDonation}
-          onPress={() => router.push("/Donate")}
-        />
-        <ActionButton
-          text="Resell"
-          isEnabled={isEligibleForReselling}
-          onPress={() => router.push("/marketplace")}
-        />
-      </View>
-    </ScrollView>
+        <View style={styles.body}>
+          {conditionScore !== null ? (
+            <>
+              <View style={styles.scoreCard}>
+                <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(conditionScore) }]}>
+                  <Text style={styles.scoreNumber}>{conditionScore}</Text>
+                </View>
+                <Text style={[styles.scoreLabel, { color: getScoreColor(conditionScore) }]}>
+                  {getScoreLabel(conditionScore)}
+                </Text>
+                <Text style={styles.scoreDesc}>
+                  {isEligibleForReselling
+                    ? 'Your item is in great shape — eligible for resale.'
+                    : isEligibleForDonation
+                    ? 'Good condition — eligible for donation.'
+                    : 'This item has seen better days.'}
+                </Text>
+              </View>
+
+              <View style={styles.actions}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    !isEligibleForDonation && styles.actionBtnDisabled,
+                    pressed && isEligibleForDonation && { transform: [{ scale: 0.97 }] },
+                  ]}
+                  onPress={isEligibleForDonation ? () => router.push('/Donate') : undefined}
+                  disabled={!isEligibleForDonation}
+                >
+                  <Feather name="gift" size={20} color={isEligibleForDonation ? Colors.WHITE : '#999'} />
+                  <Text style={[styles.actionBtnText, !isEligibleForDonation && { color: '#999' }]}>Donate</Text>
+                </Pressable>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    styles.actionBtnResell,
+                    !isEligibleForReselling && styles.actionBtnDisabled,
+                    pressed && isEligibleForReselling && { transform: [{ scale: 0.97 }] },
+                  ]}
+                  onPress={isEligibleForReselling ? () => router.push('/(tabs)/marketplace') : undefined}
+                  disabled={!isEligibleForReselling}
+                >
+                  <Feather name="tag" size={20} color={isEligibleForReselling ? Colors.WHITE : '#999'} />
+                  <Text style={[styles.actionBtnText, !isEligibleForReselling && { color: '#999' }]}>Resell</Text>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <View style={styles.emptyState}>
+              <Feather name="bar-chart-2" size={48} color={Colors.BORDER} />
+              <Text style={styles.emptyTitle}>No Score Yet</Text>
+              <Text style={styles.emptyDesc}>Scan a product QR code above to see its condition score</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-// Action Button Component
-const ActionButton = ({
-  text,
-  isEnabled,
-  onPress,
-}: {
-  text: string;
-  isEnabled: boolean;
-  onPress: () => void;
-}) => {
-  return (
-    <TouchableOpacity
-      style={[
-        styles.actionButton,
-        { opacity: isEnabled ? 1 : 0.5, backgroundColor: isEnabled ? Colors.BLUE : '#ccc' },
-      ]}
-      onPress={isEnabled ? onPress : undefined}
-      disabled={!isEnabled}
-    >
-      <Text style={styles.buttonText}>{text}</Text>
-    </TouchableOpacity>
-  );
-};
-
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: Colors.BLUE,
-    height: 100,
+  safe: {
+    flex: 1,
+    backgroundColor: Colors.BG,
   },
-  headerTitle: {
-    color: 'white',
-    fontSize: 24,
+  scroll: {
+    flex: 1,
+    backgroundColor: Colors.BG,
+  },
+  headerSection: {
+    paddingBottom: 28,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.EMERALD_DIM,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    color: Colors.TEXT,
+    fontSize: 20,
     fontFamily: 'outfit-bold',
   },
-  scannerContainer: {
+  scanCard: {
+    marginHorizontal: 24,
+    backgroundColor: Colors.BG_ELEVATED,
+    borderRadius: 24,
+    paddingVertical: 28,
     alignItems: 'center',
-    padding: 20,
-    minHeight: 300,
-    marginTop: 60
+    borderWidth: 1,
+    borderColor: Colors.BORDER,
+  },
+  scannerBox: {
+    width: 200,
+    height: 200,
+    borderRadius: 20,
+    backgroundColor: Colors.BG_CARD,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.BORDER,
   },
   cameraWrapper: {
     position: 'relative',
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   camera: {
     width: 200,
     height: 200,
-    borderRadius: 15,
+    borderRadius: 20,
   },
   qrPlaceholder: {
     width: 200,
     height: 200,
-    borderRadius: 15,
-  },
-  scannerLabel: {
-    textAlign: 'center',
-    marginTop: 10,
-    fontSize: 16,
-    color: Colors.WHITE,
-  },
-  actionsContainer: {
-    backgroundColor: Colors.WHITE,
-    borderRadius: 30,
-    marginTop: 100,
-    padding: 20,
-  },
-  actionButton: {
-    backgroundColor: Colors.BLUE,
-    padding: 20,
-    borderRadius: 20,
-    marginVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonText: {
-    color: Colors.DARK,
-    fontSize: 16,
+  qrIconBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  qrShieldBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.EMERALD,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.BG_CARD,
+  },
+  qrLabel: {
+    color: Colors.TEXT_MUTED,
+    fontSize: 12,
+    fontFamily: 'outfit-medium',
+    marginTop: 14,
+    letterSpacing: 0.5,
+  },
+  scanHint: {
+    color: Colors.TEXT_MUTED,
+    fontSize: 13,
+    fontFamily: 'outfit-medium',
+    marginTop: 14,
+  },
+  permissionBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 200,
+    height: 200,
+    borderRadius: 20,
+    backgroundColor: Colors.BG_CARD,
+    borderWidth: 1,
+    borderColor: Colors.BORDER,
+  },
+  permissionText: {
+    color: Colors.EMERALD,
+    fontSize: 15,
+    fontFamily: 'outfit-bold',
+    marginTop: 8,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(250,248,244,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 15,
+    borderRadius: 20,
   },
   loadingText: {
-    color: Colors.WHITE,
+    color: Colors.EMERALD,
     marginTop: 10,
+    fontFamily: 'outfit-medium',
+    fontSize: 14,
   },
-  permissionButton: {
-    padding: 20,
-    backgroundColor: Colors.WHITE,
-    borderRadius: 10,
+  body: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 24,
   },
-  permissionText: {
-    color: Colors.BLUE,
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  conditionScoreContainer: {
+  scoreCard: {
+    backgroundColor: Colors.BG_CARD,
+    borderRadius: 24,
+    padding: 28,
     alignItems: 'center',
-    marginTop: 20,
+    borderWidth: 1,
+    borderColor: Colors.BORDER,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  conditionScoreText: {
+  scoreBadge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  scoreNumber: {
+    color: Colors.WHITE,
+    fontSize: 28,
+    fontFamily: 'outfit-bold',
+  },
+  scoreLabel: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.WHITE,
+    fontFamily: 'outfit-bold',
+    marginBottom: 6,
   },
-  eligibilityText: {
-    fontSize: 16,
+  scoreDesc: {
+    fontSize: 14,
+    fontFamily: 'outfit-regular',
+    color: Colors.TEXT_DIM,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.EMERALD,
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  actionBtnResell: {
+    backgroundColor: Colors.GOLD,
+  },
+  actionBtnDisabled: {
+    backgroundColor: '#E8E8E8',
+  },
+  actionBtnText: {
     color: Colors.WHITE,
-    marginTop: 10,
+    fontSize: 16,
+    fontFamily: 'outfit-bold',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: 'outfit-bold',
+    color: Colors.TEXT,
+    marginTop: 16,
+  },
+  emptyDesc: {
+    fontSize: 14,
+    fontFamily: 'outfit-regular',
+    color: Colors.TEXT_DIM,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 20,
+    paddingHorizontal: 40,
   },
 });

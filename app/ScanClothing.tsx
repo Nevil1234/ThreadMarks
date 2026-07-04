@@ -1,10 +1,11 @@
-import { View, Text, Pressable, ScrollView, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import Colors from "@/constants/Colors";
 import { useRouter } from 'expo-router';
 import { ThirdwebStorage } from '@thirdweb-dev/storage';
 import Toast from 'react-native-toast-message';
+import { Feather } from '@expo/vector-icons';
 import CryptoJS from 'crypto-js';
 
 const storage = new ThirdwebStorage({
@@ -206,10 +207,11 @@ export default function ScanClothing() {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: Colors.BLUE }}>
+    <ScrollView style={{ backgroundColor: Colors.BG }}>
       <View style={styles.scannerContainer}>
         {!isPermissionGranted ? (
           <Pressable onPress={requestPermission} style={styles.permissionButton}>
+            <Feather name="camera" size={28} color={Colors.EMERALD} />
             <Text style={styles.permissionText}>Allow Camera Access</Text>
           </Pressable>
         ) : (
@@ -224,16 +226,21 @@ export default function ScanClothing() {
                   />
                   {loading && (
                     <View style={styles.loadingOverlay}>
-                      <ActivityIndicator size="large" color={Colors.WHITE} />
+                      <ActivityIndicator size="large" color={Colors.EMERALD} />
                       <Text style={styles.loadingText}>Verifying Product...</Text>
                     </View>
                   )}
                 </View>
               ) : (
-                <Image
-                  source={require('@/assets/images/qr.png')}
-                  style={styles.qrPlaceholder}
-                />
+                <View style={styles.qrPlaceholder}>
+                  <View style={styles.qrIconBox}>
+                    <Feather name="maximize" size={56} color={Colors.EMERALD} />
+                    <View style={styles.qrShieldBadge}>
+                      <Feather name="shield" size={18} color={Colors.WHITE} />
+                    </View>
+                  </View>
+                  <Text style={styles.qrLabel}>Scan QR Code</Text>
+                </View>
               )}
             </Pressable>
             <Text style={styles.scannerLabel}>Tap to scan QR code</Text>
@@ -261,33 +268,71 @@ const styles = StyleSheet.create({
   qrPlaceholder: {
     width: 200,
     height: 200,
-    borderRadius: 15,
+    borderRadius: 20,
+    backgroundColor: Colors.BG_CARD,
+    borderWidth: 1,
+    borderColor: Colors.BORDER,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrIconBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  qrShieldBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.EMERALD,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.BG_CARD,
+  },
+  qrLabel: {
+    color: Colors.TEXT_MUTED,
+    fontSize: 12,
+    fontFamily: 'outfit-medium',
+    marginTop: 14,
+    letterSpacing: 0.5,
   },
   scannerLabel: {
     textAlign: 'center',
     marginTop: 10,
-    fontSize: 16,
-    color: Colors.WHITE,
+    fontSize: 14,
+    fontFamily: 'outfit-medium',
+    color: Colors.TEXT_DIM,
   },
   permissionButton: {
     padding: 20,
-    backgroundColor: Colors.WHITE,
-    borderRadius: 10,
+    backgroundColor: Colors.BG_CARD,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.BORDER,
+    alignItems: 'center',
   },
   permissionText: {
-    color: Colors.BLUE,
-    fontSize: 16,
+    color: Colors.EMERALD,
+    fontSize: 15,
+    fontFamily: 'outfit-bold',
     textAlign: 'center',
+    marginTop: 8,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(250,248,244,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 15,
   },
   loadingText: {
-    color: Colors.WHITE,
+    color: Colors.EMERALD,
     marginTop: 10,
+    fontFamily: 'outfit-medium',
+    fontSize: 14,
   },
 });

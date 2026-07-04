@@ -1,195 +1,255 @@
-import { View, Text, FlatList, StyleSheet, Image, Pressable, Alert } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Image, Pressable, TextInput, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import { Card, Button, Searchbar } from 'react-native-paper';
 import Colors from '@/constants/Colors';
 import { Feather } from '@expo/vector-icons';
-import Ionicons from '@expo/vector-icons/Ionicons';
-const initialItems = [
+import { useRouter } from 'expo-router';
+
+const LISTINGS = [
   {
     id: '1',
-    name: 'T-Shirt',
+    name: 'Nike T-Shirt',
     brand: 'Nike',
-    price: '299',
-    // conditionScore: '0.9',
-    image: require('@/assets/images/tshirt1.png')
+    price: '₹299',
+    condition: 88,
+    imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400',
   },
   {
     id: '2',
-    name: 'Jeans',
-    brand: 'Levi\'s',
-    price: '599',
-    // conditionScore: '0.8',
-    image: require('@/assets/images/tshirt1.png')
+    name: "Levi's Slim Jeans",
+    brand: "Levi's",
+    price: '₹599',
+    condition: 76,
+    imageUrl: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=400',
+  },
+  {
+    id: '3',
+    name: 'Adidas Hoodie',
+    brand: 'Adidas',
+    price: '₹449',
+    condition: 92,
+    imageUrl: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=400',
+  },
+  {
+    id: '4',
+    name: 'Uniqlo Polo',
+    brand: 'Uniqlo',
+    price: '₹199',
+    condition: 65,
+    imageUrl: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400',
   },
 ];
 
+function conditionColor(score: number) {
+  if (score >= 80) return '#22C55E';
+  if (score >= 50) return '#F59E0B';
+  return '#EF4444';
+}
+
 export default function Marketplace() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredItems, setFilteredItems] = useState(initialItems);
+  const router = useRouter();
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    const filtered = initialItems.filter(item =>
-      item.name.toLowerCase().includes(query.toLowerCase()) ||
-      item.brand.toLowerCase().includes(query.toLowerCase())
-    );
-    setFilteredItems(filtered);
-  };
+  const filtered = LISTINGS.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.brand.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const showConditionInfo = () => {
-
-    Alert.alert(
-      'Condition Score',
-      'Condition score is a measure of how well the item has sustained. A score of 1.0 means the item is in perfect condition, while a score less than 0.4 means the item is unusable.',
-      [
-        { text: 'OK' }
-      ]
-    )
-  }
-
-  const renderItem = ({ item }) => (
-    <Card style={styles.itemCard}>
-      <Card.Cover source={item.image} style={styles.itemImage} />
-      <Card.Content>
-        {/* Wrap item name and condition score in one row */}
-        <View style={styles.itemHeaderRow}>
-          <Text style={styles.itemName}>{item.name}</Text>
-          <Pressable onPress={showConditionInfo}
-          style={styles.conditionContainer}>
-            <Ionicons name="sparkles-sharp" size={10} color="black" />
-
-            <Text style={styles.conditionText}>{item.conditionScore}</Text>
-          </Pressable>
+  const renderItem = ({ item }: { item: typeof LISTINGS[0] }) => (
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && { transform: [{ scale: 0.97 }] }]}
+      onPress={() => router.push({
+        pathname: '/product',
+        params: {
+          name: item.name,
+          brand: item.brand,
+          size: 'M',
+          category: 'Apparel',
+          material: 'Cotton Blend',
+          manufacturingDate: '2024-01-10',
+          gender: 'Unisex',
+          batchNumber: `TM-${item.id}-2024`,
+          image: item.imageUrl,
+          description: `${item.name} by ${item.brand}. Verified authentic, condition score ${item.condition}/100.`,
+        },
+      })}
+    >
+      <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
+      <View style={styles.cardBody}>
+        <Text style={styles.cardName}>{item.name}</Text>
+        <Text style={styles.cardBrand}>{item.brand}</Text>
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardPrice}>{item.price}</Text>
+          <View style={styles.conditionBadge}>
+            <View style={[styles.conditionDot, { backgroundColor: conditionColor(item.condition) }]} />
+            <Text style={styles.conditionText}>{item.condition}/100</Text>
+          </View>
         </View>
-
-        <Text style={styles.itemBrand}>{item.brand}</Text>
-        <Text style={styles.itemPrice}>₹{item.price}</Text>
-      </Card.Content>
-      <Card.Actions>
-        <Button mode="contained" onPress={() => { }} style={styles.button}>
-          View Details
-        </Button>
-      </Card.Actions>
-    </Card>
+      </View>
+    </Pressable>
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Feather name="bell" size={24} color={Colors.BLUE} />
-        <Text style={styles.headerTitle}>ThreadMark</Text>
-        <Feather name="settings" size={24} color={Colors.BLUE} />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar translucent backgroundColor={Colors.BG} barStyle="dark-content" />
+      <View style={styles.headerSection}>
+        <Text style={styles.title}>Marketplace</Text>
+        <Text style={styles.subtitle}>Verified pre-owned apparel</Text>
+
+        <View style={styles.searchRow}>
+          <Feather name="search" size={18} color={Colors.TEXT_MUTED} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search products..."
+            placeholderTextColor={Colors.TEXT_MUTED}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')}>
+              <Feather name="x" size={18} color={Colors.TEXT_MUTED} />
+            </Pressable>
+          )}
+        </View>
       </View>
 
-      <Searchbar
-        placeholder="Search products..."
-        onChangeText={handleSearch}
-        value={searchQuery}
-        style={styles.searchBar}
-      />
-
       <FlatList
-        data={filteredItems}
+        data={filtered}
         renderItem={renderItem}
         keyExtractor={item => item.id}
-        style={styles.list}
+        numColumns={2}
         contentContainerStyle={styles.listContent}
-        
+        columnWrapperStyle={styles.columnWrapper}
+        style={styles.list}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Feather name="search" size={40} color={Colors.BORDER} />
+            <Text style={styles.emptyText}>No items found</Text>
+          </View>
+        }
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: Colors.BG,
   },
-  header: {
+  headerSection: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  title: {
+    color: Colors.TEXT,
+    fontSize: 26,
+    fontFamily: 'outfit-bold',
+  },
+  subtitle: {
+    color: Colors.TEXT_DIM,
+    fontSize: 14,
+    fontFamily: 'outfit-regular',
+    marginTop: 4,
+  },
+  searchRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 16,
-  },
-  headerTitle: {
-    color: Colors.BLUE,
-    fontSize: 24,
-    fontFamily: 'outfit-bold'
-  },
-  conditionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#65ed4c', // Neon green
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 3,
-    justifyContent:'space-between'
-  },
-  searchBar: {
-    marginBottom: 16,
-    borderRadius: 10,
-    backgroundColor: 'white',
-    elevation: 4,
-    width: '100%',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    borderColor: '#000000',
+    backgroundColor: Colors.BG_CARD,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    marginTop: 18,
+    height: 46,
+    gap: 10,
     borderWidth: 1,
+    borderColor: Colors.BORDER,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'outfit-regular',
+    color: Colors.TEXT,
   },
   list: {
     flex: 1,
+    backgroundColor: Colors.BG,
   },
   listContent: {
-    padding: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 32,
   },
-  itemCard: {
+  columnWrapper: {
+    gap: 12,
+  },
+  card: {
     flex: 1,
-    margin: 8,
-    borderRadius: 8,
-    elevation: 2,
-    height: 500,
+    backgroundColor: Colors.BG_CARD,
+    borderRadius: 18,
+    overflow: 'hidden',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.BORDER,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  itemImage: {
-    height: 350,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+  cardImage: {
+    width: '100%',
+    height: 140,
+    backgroundColor: Colors.BG_ELEVATED,
   },
-  // Row for item name and condition
-  itemHeaderRow: {
+  cardBody: {
+    padding: 12,
+  },
+  cardName: {
+    fontSize: 14,
+    fontFamily: 'outfit-bold',
+    color: Colors.TEXT,
+    marginBottom: 2,
+  },
+  cardBrand: {
+    fontSize: 12,
+    fontFamily: 'outfit-regular',
+    color: Colors.TEXT_DIM,
+    marginBottom: 8,
+  },
+  cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  itemName: {
+  cardPrice: {
     fontSize: 16,
     fontFamily: 'outfit-bold',
-    marginTop: 8,
+    color: Colors.EMERALD,
   },
-
+  conditionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  conditionDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
   conditionText: {
     fontSize: 11,
     fontFamily: 'outfit-medium',
-    color: '#000000',
-
+    color: Colors.TEXT_DIM,
   },
-  itemBrand: {
-    fontSize: 14,
-    color: 'gray',
-    fontFamily: 'outfit-medium',
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: 60,
   },
-  itemPrice: {
+  emptyText: {
     fontSize: 16,
-    color: Colors.BLUE,
-    marginTop: 8,
     fontFamily: 'outfit-medium',
-  },
-  button: {
-    marginTop: -5,
-    width: '100%',
-    backgroundColor: Colors.BLUE,
+    color: Colors.TEXT_DIM,
+    marginTop: 12,
   },
 });
