@@ -118,7 +118,7 @@ export default function Home() {
     }
   };
 
-  const greetingName = userDetail?.name ? userDetail.name.split(' ')[0] : 'there';
+  const firstName = userDetail?.name ? userDetail.name.split(' ')[0] : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -138,7 +138,10 @@ export default function Home() {
         </View>
 
         {/* Greeting */}
-        <Text style={styles.greeting}>Hello, {greetingName}</Text>
+        <Text style={styles.greeting}>{firstName ? `Hello, ${firstName}` : 'Welcome to ThreadMark'}</Text>
+        <Text style={styles.greetingSub}>
+          {firstName ? 'Scan a QR code to verify an item.' : 'Scan any tag to check if it’s authentic.'}
+        </Text>
 
         {/* Scan Section */}
         <View style={styles.scanSection}>
@@ -337,6 +340,13 @@ const styles = StyleSheet.create({
     fontFamily: 'outfit-regular',
     paddingHorizontal: 24,
     marginTop: 28,
+  },
+  greetingSub: {
+    color: Colors.TEXT_MUTED,
+    fontSize: 13,
+    fontFamily: 'outfit-regular',
+    paddingHorizontal: 24,
+    marginTop: 2,
   },
   scanSection: {
     alignItems: 'center',
