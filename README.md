@@ -7,20 +7,19 @@ Built with React Native (Expo SDK 54), Firebase, and Thirdweb.
 ## Screenshots
 
 <p align="center">
-  <img src="photos/01-landing.png" width="180" />
-  <img src="photos/02-signup.png" width="180" />
   <img src="photos/03-login.png" width="180" />
+  <img src="photos/02-signup.png" width="180" />
   <img src="photos/04-home.png" width="180" />
+  <img src="photos/05-recent.png" width="180" />
 </p>
 <p align="center">
-  <img src="photos/05-recent.png" width="180" />
   <img src="photos/06-wardrobe.png" width="180" />
   <img src="photos/07-marketplace.png" width="180" />
   <img src="photos/08-condition-score.png" width="180" />
+  <img src="photos/10-donate.png" width="180" />
 </p>
 <p align="center">
   <img src="photos/09-recycling-options.png" width="180" />
-  <img src="photos/10-donate.png" width="180" />
 </p>
 
 ## What it does

@@ -33,24 +33,39 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar translucent backgroundColor={Colors.BLUE} barStyle="light-content" />
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false}>
         <View style={styles.container}>
           <View style={styles.hero}>
-            <View style={styles.badge}>
-              <Feather name="shield" size={28} color={Colors.WHITE} />
+            <View style={styles.scanFrame}>
+              <View style={styles.frameTL} />
+              <View style={styles.frameTR} />
+              <View style={styles.frameBL} />
+              <View style={styles.frameBR} />
+              <View style={styles.badge}>
+                <Feather name="shield" size={30} color={Colors.EMERALD} />
+              </View>
             </View>
             <Text style={styles.brandTitle}>ThreadMark</Text>
-            <Text style={styles.brandSub}>Verify. Own. Trust.</Text>
+            <Text style={styles.brandSub}>VERIFY · OWN · TRUST</Text>
 
             <View style={styles.heroCard}>
-              <Feather name="search" size={22} color={Colors.WHITE} style={styles.heroCardIcon} />
               <Text style={styles.heroHeadline}>
-                Is your style safe from counterfeits and fraud?
+                Is your style safe from counterfeits?
               </Text>
               <Text style={styles.heroSub}>
-                Check the genuinity of your apparel. Scan the QR code.
+                Scan the QR code on any garment to confirm it's the real thing.
               </Text>
+              <View style={styles.trustRow}>
+                <View style={styles.trustBadge}>
+                  <Feather name="shield" size={12} color={Colors.EMERALD} />
+                  <Text style={styles.trustText}>Blockchain Verified</Text>
+                </View>
+                <View style={styles.trustBadge}>
+                  <Feather name="lock" size={12} color={Colors.GOLD} />
+                  <Text style={styles.trustText}>Encrypted</Text>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -73,16 +88,14 @@ export default function Index() {
               />
             </View>
 
-            <Pressable
-              style={({ pressed }) => [styles.primaryButton, pressed && { transform: [{ scale: 0.97 }] }]}
-            >
-              <Link href="/signup" asChild>
-                <Pressable style={styles.buttonInner}>
-                  <Text style={styles.primaryText}>Let's Get Started</Text>
-                  <Feather name="arrow-right" size={18} color={Colors.WHITE} style={{ marginLeft: 8 }} />
-                </Pressable>
-              </Link>
-            </Pressable>
+            <Link href="/signup" asChild>
+              <Pressable
+                style={({ pressed }) => [styles.primaryButton, pressed && { transform: [{ scale: 0.97 }] }]}
+              >
+                <Text style={styles.primaryText}>Let's Get Started</Text>
+                <Feather name="arrow-right" size={18} color={Colors.WHITE} style={{ marginLeft: 8 }} />
+              </Pressable>
+            </Link>
 
             <Link href="/login" asChild>
               <Pressable style={styles.secondaryButton}>
@@ -102,7 +115,7 @@ function FeatureItem({ icon, title, desc }: { icon: string; title: string; desc:
   return (
     <View style={styles.feature}>
       <View style={styles.featureIconWrap}>
-        <Feather name={icon} size={20} color={Colors.BLUE} />
+        <Feather name={icon} size={20} color={Colors.EMERALD} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.featureTitle}>{title}</Text>
@@ -115,74 +128,116 @@ function FeatureItem({ icon, title, desc }: { icon: string; title: string; desc:
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.BLUE,
+    backgroundColor: Colors.BG,
   },
   container: {
     flex: 1,
-    backgroundColor: Colors.WHITE,
+    backgroundColor: Colors.BG,
   },
   hero: {
-    backgroundColor: Colors.BLUE,
-    paddingTop: 60,
-    paddingBottom: 56,
+    paddingTop: 56,
+    paddingBottom: 20,
     paddingHorizontal: 24,
-    borderBottomLeftRadius: 36,
-    borderBottomRightRadius: 36,
     alignItems: 'center',
   },
-  badge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  scanFrame: {
+    width: 104,
+    height: 104,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 18,
+  },
+  frameTL: {
+    position: 'absolute', top: 0, left: 0, width: 28, height: 28,
+    borderTopWidth: 3, borderLeftWidth: 3, borderColor: Colors.EMERALD, borderTopLeftRadius: 12,
+  },
+  frameTR: {
+    position: 'absolute', top: 0, right: 0, width: 28, height: 28,
+    borderTopWidth: 3, borderRightWidth: 3, borderColor: Colors.EMERALD, borderTopRightRadius: 12,
+  },
+  frameBL: {
+    position: 'absolute', bottom: 0, left: 0, width: 28, height: 28,
+    borderBottomWidth: 3, borderLeftWidth: 3, borderColor: Colors.EMERALD, borderBottomLeftRadius: 12,
+  },
+  frameBR: {
+    position: 'absolute', bottom: 0, right: 0, width: 28, height: 28,
+    borderBottomWidth: 3, borderRightWidth: 3, borderColor: Colors.EMERALD, borderBottomRightRadius: 12,
+  },
+  badge: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: Colors.EMERALD_LIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   brandTitle: {
-    color: Colors.WHITE,
+    color: Colors.TEXT,
     fontSize: 30,
     fontFamily: 'outfit-bold',
+    letterSpacing: 1,
   },
   brandSub: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 14,
-    fontFamily: 'outfit-medium',
+    color: Colors.TEXT_MUTED,
+    fontSize: 12,
+    fontFamily: 'outfit-bold',
     marginTop: 4,
-    letterSpacing: 1,
+    letterSpacing: 2.5,
   },
   heroCard: {
     width: '100%',
-    marginTop: 32,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 20,
-    paddingVertical: 22,
-    paddingHorizontal: 18,
-    flexDirection: 'column',
+    marginTop: 28,
+    backgroundColor: Colors.BG_CARD,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: Colors.BORDER,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
     alignItems: 'center',
-  },
-  heroCardIcon: {
-    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 4,
   },
   heroHeadline: {
-    color: Colors.WHITE,
-    fontSize: 20,
+    color: Colors.TEXT,
+    fontSize: 21,
     fontFamily: 'outfit-bold',
     textAlign: 'center',
-    lineHeight: 26,
+    lineHeight: 28,
   },
   heroSub: {
-    color: 'rgba(255,255,255,0.8)',
+    color: Colors.TEXT_DIM,
     fontSize: 14,
     fontFamily: 'outfit-regular',
     textAlign: 'center',
     marginTop: 10,
     lineHeight: 20,
   },
+  trustRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 18,
+  },
+  trustBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.BG_ELEVATED,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  trustText: {
+    color: Colors.TEXT_DIM,
+    fontSize: 10,
+    fontFamily: 'outfit-medium',
+  },
   body: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 30,
+    paddingTop: 26,
     paddingBottom: 20,
   },
   features: {
@@ -197,7 +252,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: Colors.LIGHT_BLUE,
+    backgroundColor: Colors.EMERALD_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -205,29 +260,23 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 15,
     fontFamily: 'outfit-bold',
-    color: Colors.DARK,
+    color: Colors.TEXT,
     marginBottom: 2,
   },
   featureDesc: {
     fontSize: 13,
     fontFamily: 'outfit-regular',
-    color: Colors.MEDIUM_GRAY,
+    color: Colors.TEXT_DIM,
     lineHeight: 18,
   },
   primaryButton: {
-    backgroundColor: Colors.BLUE,
+    backgroundColor: Colors.EMERALD,
     borderRadius: 14,
     height: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  buttonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    height: '100%',
+    marginTop: 8,
   },
   primaryText: {
     color: Colors.WHITE,
@@ -242,10 +291,10 @@ const styles = StyleSheet.create({
   secondaryText: {
     fontFamily: 'outfit-medium',
     fontSize: 15,
-    color: Colors.MEDIUM_GRAY,
+    color: Colors.TEXT_DIM,
   },
   secondaryHighlight: {
-    color: Colors.BLUE,
+    color: Colors.GOLD,
     fontFamily: 'outfit-bold',
   },
 });

@@ -53,11 +53,17 @@ export default function LoginPage() {
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <View style={styles.container}>
-          <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+          <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
-          <View style={styles.headerCurve}>
-            <View style={styles.badge}>
-              <Feather name="shield" size={26} color={Colors.WHITE} />
+          <View style={styles.brandHeader}>
+            <View style={styles.scanFrame}>
+              <View style={styles.frameTL} />
+              <View style={styles.frameTR} />
+              <View style={styles.frameBL} />
+              <View style={styles.frameBR} />
+              <View style={styles.badge}>
+                <Feather name="shield" size={26} color={Colors.EMERALD} />
+              </View>
             </View>
             <Text style={styles.brandTitle}>ThreadMark</Text>
             <Text style={styles.brandSub}>Welcome back</Text>
@@ -75,9 +81,9 @@ export default function LoginPage() {
               autoCapitalize="none"
               style={styles.input}
               mode="outlined"
-              outlineColor={Colors.LIGHT_GRAY}
-              activeOutlineColor={Colors.BLUE}
-              theme={{ colors: { primary: Colors.BLUE } }}
+              outlineColor={Colors.BORDER}
+              activeOutlineColor={Colors.EMERALD}
+              theme={{ colors: { primary: Colors.EMERALD } }}
               left={<TextInput.Icon icon="email-outline" />}
             />
 
@@ -88,9 +94,9 @@ export default function LoginPage() {
               secureTextEntry={!showPassword}
               style={styles.input}
               mode="outlined"
-              outlineColor={Colors.LIGHT_GRAY}
-              activeOutlineColor={Colors.BLUE}
-              theme={{ colors: { primary: Colors.BLUE } }}
+              outlineColor={Colors.BORDER}
+              activeOutlineColor={Colors.EMERALD}
+              theme={{ colors: { primary: Colors.EMERALD } }}
               left={<TextInput.Icon icon="lock-outline" />}
               right={
                 <TextInput.Icon
@@ -106,7 +112,7 @@ export default function LoginPage() {
 
             {loading ? (
               <View style={styles.loadingWrap}>
-                <ActivityIndicator size="large" color={Colors.BLUE} />
+                <ActivityIndicator size="large" color={Colors.EMERALD} />
               </View>
             ) : (
               <Button
@@ -115,6 +121,7 @@ export default function LoginPage() {
                 style={styles.button}
                 labelStyle={styles.buttonLabel}
                 contentStyle={{ paddingVertical: 6 }}
+                buttonColor={Colors.EMERALD}
               >
                 Login
               </Button>
@@ -147,67 +154,91 @@ export default function LoginPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.WHITE,
+    backgroundColor: Colors.BG,
   },
-  headerCurve: {
-    backgroundColor: Colors.BLUE,
-    paddingTop: 70,
-    paddingBottom: 50,
+  brandHeader: {
+    paddingTop: 80,
+    paddingBottom: 20,
     paddingHorizontal: 24,
-    borderBottomLeftRadius: 36,
-    borderBottomRightRadius: 36,
     alignItems: 'center',
+  },
+  scanFrame: {
+    width: 96,
+    height: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  frameTL: {
+    position: 'absolute', top: 0, left: 0, width: 26, height: 26,
+    borderTopWidth: 3, borderLeftWidth: 3, borderColor: Colors.EMERALD, borderTopLeftRadius: 12,
+  },
+  frameTR: {
+    position: 'absolute', top: 0, right: 0, width: 26, height: 26,
+    borderTopWidth: 3, borderRightWidth: 3, borderColor: Colors.EMERALD, borderTopRightRadius: 12,
+  },
+  frameBL: {
+    position: 'absolute', bottom: 0, left: 0, width: 26, height: 26,
+    borderBottomWidth: 3, borderLeftWidth: 3, borderColor: Colors.EMERALD, borderBottomLeftRadius: 12,
+  },
+  frameBR: {
+    position: 'absolute', bottom: 0, right: 0, width: 26, height: 26,
+    borderBottomWidth: 3, borderRightWidth: 3, borderColor: Colors.EMERALD, borderBottomRightRadius: 12,
   },
   badge: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: Colors.EMERALD_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
   },
   brandTitle: {
-    color: Colors.WHITE,
+    color: Colors.TEXT,
     fontSize: 28,
     fontFamily: 'outfit-bold',
+    letterSpacing: 1,
   },
   brandSub: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
+    color: Colors.TEXT_DIM,
+    fontSize: 13,
     fontFamily: 'outfit-medium',
     marginTop: 4,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   card: {
-    marginTop: -28,
+    marginTop: 12,
     marginHorizontal: 20,
-    backgroundColor: Colors.WHITE,
+    backgroundColor: Colors.BG_CARD,
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: Colors.BORDER,
     paddingHorizontal: 24,
     paddingTop: 28,
     paddingBottom: 24,
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 16,
     elevation: 8,
   },
   title: {
     fontSize: 26,
     fontFamily: 'outfit-bold',
-    color: Colors.DARK,
+    color: Colors.TEXT,
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 15,
     fontFamily: 'outfit-regular',
-    color: Colors.MEDIUM_GRAY,
+    color: Colors.TEXT_DIM,
     marginBottom: 24,
   },
   input: {
     marginBottom: 14,
-    backgroundColor: Colors.WHITE,
+    backgroundColor: Colors.BG_CARD,
   },
   errorText: {
     marginTop: -4,
@@ -217,7 +248,6 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 8,
     borderRadius: 14,
-    backgroundColor: Colors.BLUE,
   },
   buttonLabel: {
     fontFamily: 'outfit-bold',
@@ -233,7 +263,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   forgotText: {
-    color: Colors.BLUE,
+    color: Colors.EMERALD,
     fontFamily: 'outfit-medium',
     fontSize: 14,
   },
@@ -245,10 +275,10 @@ const styles = StyleSheet.create({
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.LIGHT_GRAY,
+    backgroundColor: Colors.BORDER,
   },
   dividerText: {
-    color: Colors.MEDIUM_GRAY,
+    color: Colors.TEXT_MUTED,
     fontFamily: 'outfit-medium',
     fontSize: 13,
     marginHorizontal: 12,
@@ -260,10 +290,10 @@ const styles = StyleSheet.create({
   secondaryText: {
     fontFamily: 'outfit-medium',
     fontSize: 15,
-    color: Colors.MEDIUM_GRAY,
+    color: Colors.TEXT_DIM,
   },
   secondaryHighlight: {
-    color: Colors.BLUE,
+    color: Colors.GOLD,
     fontFamily: 'outfit-bold',
   },
 });
