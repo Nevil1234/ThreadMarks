@@ -54,7 +54,7 @@ export default function ConditionScore() {
   const [permission, requestPermission] = useCameraPermissions();
   const [showCamera, setShowCamera] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
-  const [conditionScore, setConditionScore] = React.useState<number | null>(null);
+  const [conditionScore, setConditionScore] = React.useState<number | null>(72); // demo score so the result card shows without a scan
   const isPermissionGranted = Boolean(permission?.granted);
 
   const isEligibleForDonation = conditionScore !== null && conditionScore >= 50;
